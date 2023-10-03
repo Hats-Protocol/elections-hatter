@@ -41,6 +41,9 @@ contract ModuleTest is Deploy, Test {
   uint256 public currentTermEnd;
   uint256 public nextTermEnd;
 
+  bool public eligible;
+  bool public standing;
+
   string public MODULE_VERSION;
 
   event ElectionOpened(uint256 nextTermEnd);
@@ -103,6 +106,8 @@ contract WithInstanceTest is ModuleTest {
   function assertCorrectWinners(uint256 _termEnd, address[] memory _winners, bool _elected) public {
     for (uint256 i; i < _winners.length; ++i) {
       assertEq(instance.electionResults(_termEnd, _winners[i]), _elected, "incorrect winner");
+      (eligible, standing) = instance.getWearerStatus(_winners[i], electedRoleHat);
+      assertEq(eligible, _elected, "incorrect eligibility");
     }
   }
 }
@@ -404,68 +409,6 @@ contract StartingNextTerm is WithInstanceTest {
   }
 }
 
-contract Claiming is WithInstanceTest {
-  function setUp() public override {
-    super.setUp();
-
-    // submit some winners
-    winners = new address[](2);
-    winners[0] = candidate1;
-    winners[1] = candidate2;
-    vm.prank(ballotBox);
-    instance.elect(currentTermEnd, winners);
-  }
-
-  function assertions_claim(address _claimer, bool _elected) public {
-    assertEq(HATS.isWearerOfHat(_claimer, electedRoleHat), _elected, "incorrect claim");
-  }
-
-  function test_claim() public claimer(candidate1) termEnded(false) {
-    vm.prank(caller);
-    instance.claim();
-
-    assertions_claim(caller, true);
-  }
-
-  function test_claim_secondWinner() public claimer(candidate2) termEnded(false) {
-    vm.prank(caller);
-    instance.claim();
-
-    assertions_claim(caller, true);
-  }
-
-  function test_revert_notElected() public claimer(nonWearer) termEnded(false) {
-    vm.expectRevert(NotElected.selector);
-
-    vm.prank(caller);
-    instance.claim();
-
-    assertions_claim(caller, false);
-  }
-
-  function test_revert_termEnded() public claimer(candidate1) termEnded(true) {
-    vm.expectRevert(TermEnded.selector);
-
-    vm.prank(caller);
-    instance.claim();
-
-    assertions_claim(caller, false);
-  }
-
-  modifier claimer(address _claimer) {
-    caller = _claimer;
-    _;
-  }
-
-  modifier termEnded(bool _ended) {
-    currentTermEnd = instance.currentTermEnd();
-    uint256 time = _ended ? currentTermEnd : currentTermEnd - 1;
-    vm.warp(time);
-    assertEq(instance.currentTermEnd() <= block.timestamp, _ended, "ended");
-    _;
-  }
-}
-
 contract Recalling is WithInstanceTest {
   address[] public recallees;
 
@@ -482,7 +425,8 @@ contract Recalling is WithInstanceTest {
 
   function assertions_recall(address[] memory _accounts, bool _recalled) public {
     for (uint256 i; i < _accounts.length; ++i) {
-      assertEq(HATS.isWearerOfHat(_accounts[i], electedRoleHat), !_recalled, "incorrect recall");
+      (eligible, standing) = instance.getWearerStatus(_accounts[i], electedRoleHat);
+      assertEq(eligible, !_recalled, "incorrect eligibility");
     }
   }
 
@@ -490,15 +434,11 @@ contract Recalling is WithInstanceTest {
     recallees = new address[](1);
     recallees[0] = candidate1;
 
-    // candidate claims
-    vm.prank(candidate1);
-    instance.claim();
-
     vm.expectEmit();
     emit Recalled(recallees);
 
     vm.prank(caller);
-    instance.recall(recallees);
+    instance.recall(currentTermEnd, recallees);
 
     assertions_recall(recallees, true);
   }
@@ -508,17 +448,11 @@ contract Recalling is WithInstanceTest {
     recallees[0] = candidate1;
     recallees[1] = candidate2;
 
-    // candidates claim
-    vm.prank(candidate1);
-    instance.claim();
-    vm.prank(candidate2);
-    instance.claim();
-
     vm.expectEmit();
     emit Recalled(recallees);
 
     vm.prank(caller);
-    instance.recall(recallees);
+    instance.recall(currentTermEnd, recallees);
 
     assertions_recall(recallees, true);
   }
@@ -527,14 +461,10 @@ contract Recalling is WithInstanceTest {
     recallees = new address[](1);
     recallees[0] = candidate1;
 
-    // candidate claims
-    vm.prank(candidate1);
-    instance.claim();
-
     vm.expectRevert(NotBallotBox.selector);
 
     vm.prank(caller);
-    instance.recall(recallees);
+    instance.recall(currentTermEnd, recallees);
 
     assertions_recall(recallees, false);
   }

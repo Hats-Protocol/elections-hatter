@@ -9,9 +9,8 @@ import { HatsEligibilityModule } from "hats-module/HatsEligibilityModule.sol";
  * @title Hats Election Eligibility
  * @author spengrah
  * @author Haberdasher Labs
- * @notice This contract is an eligibility module and hatter contract for Hats protocol. It sets eligibility for a hat
- * based on the results of an election (conducted elsewhere) of a given term, and allows the winners of the election to
- * claim that hat.
+ * @notice This contract is an eligibility module for Hats protocol. It sets eligibility for a hat
+ * based on the results of an election (conducted elsewhere) of a given term.
  * Terms are defined as the timestamp after the term ends. This contract allows for the next term to be set while the
  * current term has not yet ended, which allows for an election for the next term to be conducted while the current term
  * is still active.
@@ -156,38 +155,12 @@ contract HatsElectionEligibility is HatsEligibilityModule {
   }
 
   /*//////////////////////////////////////////////////////////////
-                        CLAIM FUNCTIONS
-  //////////////////////////////////////////////////////////////*/
-
-  /**
-   * @notice Claim the hat if the caller has been elected for the current term
-   * @dev This function will revert unless this contract is wearing an admin hat of {hatId}
-   */
-  function claim() external {
-    uint256 current = currentTermEnd; // save SLOAD
-
-    // the current term must not be over
-    if (current <= block.timestamp) revert TermEnded();
-
-    if (electionResults[current][msg.sender]) {
-      // if the caller has been elected for the present term, mint them the hat
-      HATS().mintHat(hatId(), msg.sender);
-    } else {
-      // otherwise, revert
-      revert NotElected();
-    }
-
-    /// @dev Hats.sol will emit a TransferSingle event if the hat has been successfully minted
-
-    // TODO next version: allow alternative eligibility modules and enforce explicit eligibility
-  }
-
-  /*//////////////////////////////////////////////////////////////
                         ADMIN FUNCTIONS
   //////////////////////////////////////////////////////////////*/
 
   /**
-   * @notice Submit the results of an election for a specified term. This will close the election for that term.
+   * @notice Submit the results of an election for a specified term, making a set of `_winners` eligible for the hat
+   * within that term. This will close the election for that term.
    * @dev Only callable by the wearer(s) of the BALLOT_BOX_HAT.
    *  Will revert if the election for the specified term is closed.
    * @param _termEnd The id of the term for which the election results are being submitted
@@ -217,6 +190,29 @@ contract HatsElectionEligibility is HatsEligibilityModule {
 
     // log the election results
     emit ElectionCompleted(_termEnd, _winners);
+  }
+
+  /**
+   * @notice Submit the results of a recall election for a specified term, making a set of `_recallees` ineligible for
+   * the hat during that term.
+   * @dev Only callable by the wearer(s) of the BALLOT_BOX_HAT.
+   * @param _termEnd The id of the term for which the election results are being submitted, as the termEnd
+   * @param _recallees The addresses of the winners of the election
+   */
+  function recall(uint256 _termEnd, address[] calldata _recallees) external {
+    // caller must be wearing the ballot box hat
+    _checkBallotBox(msg.sender);
+
+    // loop through the accounts and set their election status to false
+    for (uint256 i; i < _recallees.length;) {
+      electionResults[_termEnd][_recallees[i]] = false;
+
+      unchecked {
+        ++i;
+      }
+    }
+
+    emit Recalled(_recallees);
   }
 
   /**
@@ -269,22 +265,6 @@ contract HatsElectionEligibility is HatsEligibilityModule {
 
     // log the change
     emit NewTermStarted(next);
-  }
-
-  function recall(address[] calldata _accounts) external {
-    // caller must be wearing the ballot box hat
-    _checkBallotBox(msg.sender);
-
-    // loop through the accounts and set their election status to false
-    for (uint256 i; i < _accounts.length;) {
-      electionResults[currentTermEnd][_accounts[i]] = false;
-
-      unchecked {
-        ++i;
-      }
-    }
-
-    emit Recalled(_accounts);
   }
 
   /*//////////////////////////////////////////////////////////////
