@@ -1,8 +1,12 @@
-# hats-module-template
+# Hats Election Eligibility
 
-Template repo for Hats Module projects.
+This contract is an eligibility module and hatter contract for Hats protocol. It sets eligibility for a hat based on the results of an election (conducted elsewhere) of a given term, and allows the winners of the election to claim that hat.
+
+Terms are defined as the timestamp after the term ends. This contract allows for the next term to be set while the current term has not yet ended, which allows for an election for the next term to be conducted while the current term is still active.
 
 ## Overview and Usage
+
+TODO
 
 ## Development
 
