@@ -24,7 +24,7 @@ contract HatsElectionEligibility is HatsEligibilityModule {
   error NotBallotBox();
   error NotOwner();
   error TooManyWinners();
-  error ElectionClosed(uint256 termEnd);
+  error ElectionClosed(uint128 termEnd);
   error InvalidTermEnd();
   error NotElected();
   error TermNotEnded();
@@ -35,11 +35,11 @@ contract HatsElectionEligibility is HatsEligibilityModule {
                               EVENTS
   //////////////////////////////////////////////////////////////*/
 
-  event ElectionOpened(uint256 nextTermEnd);
+  event ElectionOpened(uint128 nextTermEnd);
 
-  event ElectionCompleted(uint256 termEnd, address[] winners);
+  event ElectionCompleted(uint128 termEnd, address[] winners);
 
-  event NewTermStarted(uint256 termEnd);
+  event NewTermStarted(uint128 termEnd);
 
   event Recalled(address[] accounts);
 
@@ -92,17 +92,17 @@ contract HatsElectionEligibility is HatsEligibilityModule {
                             MUTABLE STATE
   //////////////////////////////////////////////////////////////*/
 
-  mapping(uint256 termEnd => mapping(address candidates => bool elected)) public electionResults;
+  mapping(uint128 termEnd => mapping(address candidates => bool elected)) public electionResults;
 
-  mapping(uint256 termEnd => bool isElectionOpen) public electionStatus;
+  mapping(uint128 termEnd => bool isElectionOpen) public electionStatus;
 
   /// @notice The first second after the current term ends.
   /// @dev Also serves as the id for the current term
-  uint256 public currentTermEnd;
+  uint128 public currentTermEnd;
 
   /// @notice The first second after the next term ends
   /// @dev Also serves as the id for the next term
-  uint256 public nextTermEnd;
+  uint128 public nextTermEnd;
 
   /*//////////////////////////////////////////////////////////////
                             CONSTRUCTOR
@@ -119,7 +119,7 @@ contract HatsElectionEligibility is HatsEligibilityModule {
   /// @inheritdoc HatsModule
   function _setUp(bytes calldata _initData) internal override {
     // decode init data
-    (uint256 firstTermEnd) = abi.decode(_initData, (uint256));
+    (uint128 firstTermEnd) = abi.decode(_initData, (uint128));
 
     // set currentTermEnd
     currentTermEnd = firstTermEnd;
@@ -145,7 +145,7 @@ contract HatsElectionEligibility is HatsEligibilityModule {
     /// @dev This eligibility module is not concerned with standing, so we default it to good standing
     standing = true;
 
-    uint256 current = currentTermEnd; // save SLOAD
+    uint128 current = currentTermEnd; // save SLOAD
 
     if (block.timestamp < current) {
       // if the current term is still open, the wearer is eligible if they have been elected for the current term
@@ -166,7 +166,7 @@ contract HatsElectionEligibility is HatsEligibilityModule {
    * @param _termEnd The id of the term for which the election results are being submitted
    * @param _winners The addresses of the winners of the election
    */
-  function elect(uint256 _termEnd, address[] calldata _winners) external {
+  function elect(uint128 _termEnd, address[] calldata _winners) external {
     // caller must be wearing the ballot box hat
     _checkBallotBox(msg.sender);
 
@@ -199,7 +199,7 @@ contract HatsElectionEligibility is HatsEligibilityModule {
    * @param _termEnd The id of the term for which the election results are being submitted, as the termEnd
    * @param _recallees The addresses of the winners of the election
    */
-  function recall(uint256 _termEnd, address[] calldata _recallees) external {
+  function recall(uint128 _termEnd, address[] calldata _recallees) external {
     // caller must be wearing the ballot box hat
     _checkBallotBox(msg.sender);
 
@@ -222,7 +222,7 @@ contract HatsElectionEligibility is HatsEligibilityModule {
    *  Will revert if the next term has already been set and is closed.
    * @param _newTermEnd The id of the term that will be opened
    */
-  function setNextTerm(uint256 _newTermEnd) external {
+  function setNextTerm(uint128 _newTermEnd) external {
     // caller must be wearing the owner hat
     _checkOwner(msg.sender);
 
@@ -230,7 +230,7 @@ contract HatsElectionEligibility is HatsEligibilityModule {
     if (_newTermEnd <= currentTermEnd) revert InvalidTermEnd();
 
     // if next term is already set, its election must still be open
-    uint256 next = nextTermEnd;
+    uint128 next = nextTermEnd;
     if (next > 0 && !electionStatus[next]) revert ElectionClosed(next);
 
     // set the next term
@@ -252,7 +252,7 @@ contract HatsElectionEligibility is HatsEligibilityModule {
     // current term must be over
     if (block.timestamp < currentTermEnd) revert TermNotEnded();
 
-    uint256 next = nextTermEnd; // save SLOADs
+    uint128 next = nextTermEnd; // save SLOADs
 
     // next term must be set and its election must be closed
     if (next == 0 || electionStatus[next]) revert NextTermNotReady();

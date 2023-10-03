@@ -38,23 +38,23 @@ contract ModuleTest is Deploy, Test {
   uint256 public ballotBoxHat;
   uint256 public electedRoleHat;
 
-  uint256 public currentTermEnd;
-  uint256 public nextTermEnd;
+  uint128 public currentTermEnd;
+  uint128 public nextTermEnd;
 
   bool public eligible;
   bool public standing;
 
   string public MODULE_VERSION;
 
-  event ElectionOpened(uint256 nextTermEnd);
-  event ElectionCompleted(uint256 termEnd, address[] winners);
-  event NewTermStarted(uint256 termEnd);
+  event ElectionOpened(uint128 nextTermEnd);
+  event ElectionCompleted(uint128 termEnd, address[] winners);
+  event NewTermStarted(uint128 termEnd);
   event Recalled(address[] accounts);
 
   error NotBallotBox();
   error NotOwner();
   error TooManyWinners();
-  error ElectionClosed(uint256 termEnd);
+  error ElectionClosed(uint128 termEnd);
   error InvalidTermEnd();
   error NotElected();
   error TermNotEnded();
@@ -89,7 +89,7 @@ contract WithInstanceTest is ModuleTest {
     otherImmutableArgs = abi.encodePacked(ballotBoxHat, tophat);
 
     // set up the init args
-    currentTermEnd = block.timestamp + 1 days;
+    currentTermEnd = uint128(block.timestamp + 1 days);
     initArgs = abi.encode(currentTermEnd);
 
     // deploy an instance of the module
@@ -103,7 +103,7 @@ contract WithInstanceTest is ModuleTest {
     HATS.transferHat(tophat, address(this), org);
   }
 
-  function assertCorrectWinners(uint256 _termEnd, address[] memory _winners, bool _elected) public {
+  function assertCorrectWinners(uint128 _termEnd, address[] memory _winners, bool _elected) public {
     for (uint256 i; i < _winners.length; ++i) {
       assertEq(instance.electionResults(_termEnd, _winners[i]), _elected, "incorrect winner");
       (eligible, standing) = instance.getWearerStatus(_winners[i], electedRoleHat);
@@ -158,7 +158,7 @@ contract Deployment is WithInstanceTest {
 }
 
 contract Electing is WithInstanceTest {
-  function assertions_elect(uint256 _termEnd, address[] memory _winners, bool _elected, bool _status) public {
+  function assertions_elect(uint128 _termEnd, address[] memory _winners, bool _elected, bool _status) public {
     assertCorrectWinners(_termEnd, _winners, _elected);
     assertEq(instance.electionStatus(_termEnd), _status, "incorrect election status");
   }
@@ -249,15 +249,15 @@ contract Electing is WithInstanceTest {
 }
 
 contract SettingNextTerm is WithInstanceTest {
-  uint256 public preSet;
+  uint128 public preSet;
 
   function setUp() public override {
     super.setUp();
-    nextTermEnd = block.timestamp + 2 days;
-    preSet = block.timestamp + 1 days + 12 hours;
+    nextTermEnd = uint128(block.timestamp + 2 days);
+    preSet = uint128(block.timestamp + 1 days + 12 hours);
   }
 
-  function assertions_setNextTerm(uint256 _termEnd, bool _status) public {
+  function assertions_setNextTerm(uint128 _termEnd, bool _status) public {
     assertEq(instance.nextTermEnd(), _termEnd, "incorrect next term end");
     assertEq(instance.electionStatus(_termEnd), _status, "incorrect election status");
   }
@@ -314,7 +314,7 @@ contract SettingNextTerm is WithInstanceTest {
     _;
   }
 
-  modifier alreadySetWithStatus(uint256 _preSet, bool _status) {
+  modifier alreadySetWithStatus(uint128 _preSet, bool _status) {
     if (_preSet > 0) {
       address[] memory preWinners = new address[](1);
       preWinners[0] = address(0);
@@ -341,10 +341,10 @@ contract StartingNextTerm is WithInstanceTest {
     instance.elect(currentTermEnd, winners);
 
     // prep next term
-    nextTermEnd = block.timestamp + 2 days;
+    nextTermEnd = uint128(block.timestamp + 2 days);
   }
 
-  function assertions_startNextTerm(uint256 _current, uint256 _next, bool _status) public {
+  function assertions_startNextTerm(uint128 _current, uint128 _next, bool _status) public {
     assertEq(instance.currentTermEnd(), _current, "incorrect current term end");
     assertEq(instance.nextTermEnd(), _next, "incorrect next term end");
     assertEq(instance.electionStatus(_current), _status, "incorrect election status");
@@ -385,7 +385,7 @@ contract StartingNextTerm is WithInstanceTest {
 
   modifier termEnded(bool _ended) {
     currentTermEnd = instance.currentTermEnd();
-    uint256 time = _ended ? currentTermEnd : currentTermEnd - 1;
+    uint128 time = _ended ? currentTermEnd : currentTermEnd - 1;
     vm.warp(time);
     _;
   }
@@ -514,7 +514,7 @@ contract GettingWearerStatus is WithInstanceTest {
 
   modifier duringTerm(bool _during) {
     currentTermEnd = instance.currentTermEnd();
-    uint256 time = _during ? currentTermEnd - 1 : currentTermEnd;
+    uint128 time = _during ? currentTermEnd - 1 : currentTermEnd;
     vm.warp(time);
     _;
   }
