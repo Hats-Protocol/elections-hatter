@@ -544,3 +544,48 @@ contract Recalling is WithInstanceTest {
     _;
   }
 }
+
+contract GettingWearerStatus is WithInstanceTest {
+  address public wearer;
+
+  function setUp() public override {
+    super.setUp();
+
+    // submit some winners
+    winners = new address[](2);
+    winners[0] = candidate1;
+    winners[1] = candidate2;
+    vm.prank(ballotBox);
+    instance.elect(currentTermEnd, winners);
+  }
+
+  function assertions_getWearerStatus(address _wearer, bool _eligible, bool _standing) public {
+    (bool eligible, bool standing) = instance.getWearerStatus(_wearer, electedRoleHat);
+    assertEq(eligible, _eligible, "incorrect eligibility");
+    assertEq(standing, _standing, "incorrect standing");
+  }
+
+  function test_eligible_elected_duringTerm() public wearer_(candidate1) duringTerm(true) {
+    assertions_getWearerStatus(candidate1, true, true);
+  }
+
+  function test_notEligible_elected_afterTerm() public wearer_(candidate1) duringTerm(false) {
+    assertions_getWearerStatus(candidate1, false, true);
+  }
+
+  function test_notEligible_notElected_duringTerm() public wearer_(nonWearer) duringTerm(true) {
+    assertions_getWearerStatus(nonWearer, false, true);
+  }
+
+  modifier wearer_(address _wearer) {
+    wearer = _wearer;
+    _;
+  }
+
+  modifier duringTerm(bool _during) {
+    currentTermEnd = instance.currentTermEnd();
+    uint256 time = _during ? currentTermEnd - 1 : currentTermEnd;
+    vm.warp(time);
+    _;
+  }
+}
