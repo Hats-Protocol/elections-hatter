@@ -22,7 +22,7 @@ contract HatsElectionEligibility is HatsEligibilityModule {
   //////////////////////////////////////////////////////////////*/
 
   error NotBallotBox();
-  error NotOwner();
+  error NotAdmin();
   error TooManyWinners();
   error ElectionClosed(uint128 termEnd);
   error InvalidTermEnd();
@@ -70,7 +70,7 @@ contract HatsElectionEligibility is HatsEligibilityModule {
    * 20      | HATS              | address | 20      | HatsModule          |
    * 40      | hatId             | uint256 | 32      | HatsModule          |
    * 72      | BALLOT_BOX_HAT    | uint256 | 32      | this                |
-   * 104     | OWNER_HAT         | uint256 | 32      | this                |
+   * 104     | ADMIN_HAT         | uint256 | 32      | this                |
    * ----------------------------------------------------------------------+
    */
 
@@ -84,7 +84,8 @@ contract HatsElectionEligibility is HatsEligibilityModule {
   }
 
   /// @notice The wearer(s) of this hat are authorized to set the next election term
-  function OWNER_HAT() public pure returns (uint256) {
+  /// @dev If 0, the admin(s) of the {hatId} are instead authorized
+  function ADMIN_HAT() public pure returns (uint256) {
     return _getArgUint256(104);
   }
 
@@ -224,7 +225,7 @@ contract HatsElectionEligibility is HatsEligibilityModule {
    */
   function setNextTerm(uint128 _newTermEnd) external {
     // caller must be wearing the owner hat
-    _checkOwner(msg.sender);
+    _checkAdmin(msg.sender);
 
     // new term must end after current term
     if (_newTermEnd <= currentTermEnd) revert InvalidTermEnd();
@@ -271,9 +272,15 @@ contract HatsElectionEligibility is HatsEligibilityModule {
                         INTERNAL FUNCTIONS
   //////////////////////////////////////////////////////////////*/
 
-  /// @dev Revert if `_account` is not wearing the OWNER_HAT
-  function _checkOwner(address _account) internal view {
-    if (!HATS().isWearerOfHat(_account, OWNER_HAT())) revert NotOwner();
+  /// @dev If {ADMIN_HAT} is non-zero, check if if `_account` is wearing it.
+  /// Else, check if `_account` is wearing an admin hat of the {hatId}.
+  /// Revert if neither is true.
+  function _checkAdmin(address _account) internal view {
+    if (ADMIN_HAT() == 0) {
+      if (!HATS().isAdminOfHat(_account, hatId())) revert NotAdmin();
+    } else {
+      if (!HATS().isWearerOfHat(_account, ADMIN_HAT())) revert NotAdmin();
+    }
   }
 
   /// @dev Revert if `_account` is not wearing the BALLOT_BOX_HAT

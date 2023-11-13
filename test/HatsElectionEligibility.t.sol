@@ -52,7 +52,7 @@ contract ModuleTest is Deploy, Test {
   event Recalled(address[] accounts);
 
   error NotBallotBox();
-  error NotOwner();
+  error NotAdmin();
   error TooManyWinners();
   error ElectionClosed(uint128 termEnd);
   error InvalidTermEnd();
@@ -143,8 +143,8 @@ contract Deployment is WithInstanceTest {
     assertEq(instance.BALLOT_BOX_HAT(), ballotBoxHat);
   }
 
-  function test_ownerHat() public {
-    assertEq(instance.OWNER_HAT(), tophat);
+  function test_adminHat() public {
+    assertEq(instance.ADMIN_HAT(), tophat);
   }
 
   function test_currentTermEnd() public {
@@ -282,8 +282,8 @@ contract SettingNextTerm is WithInstanceTest {
     assertions_setNextTerm(nextTermEnd, true);
   }
 
-  function test_revert_notOwner() public setter(nonWearer) alreadySetWithStatus(0, false) {
-    vm.expectRevert(NotOwner.selector);
+  function test_revert_notAdmin() public setter(nonWearer) alreadySetWithStatus(0, false) {
+    vm.expectRevert(NotAdmin.selector);
 
     vm.prank(caller);
     instance.setNextTerm(nextTermEnd);
