@@ -3,14 +3,50 @@ pragma solidity ^0.8.19;
 
 import { Script, console2 } from "forge-std/Script.sol";
 import { HatsElectionEligibility } from "../src/HatsElectionEligibility.sol";
+import { HatsModuleFactory } from "hats-module/HatsModuleFactory.sol";
+
+contract DeployInstance is Script {
+  HatsModuleFactory public factory = HatsModuleFactory(0xfE661c01891172046feE16D3a57c3Cf456729efA);
+  address public implementation = 0xfAA98550Fa58a0100c37B9a8Bc6AcA9E6aE98FcE;
+  address public instance;
+  bytes32 public SALT = bytes32(abi.encode(0x4a75)); // ~ H(4) A(a) T(7) S(5)
+
+  uint256 public electedRole =
+    7_413_986_567_601_121_036_173_347_445_921_121_142_686_301_119_666_659_012_932_854_364_504_064; // goerli 275.3.1
+  uint256 public ballotBox =
+    7_413_985_333_466_425_943_533_429_148_930_398_435_250_214_716_198_657_432_303_492_818_534_400; // goerli 275
+  uint256 public admin = ballotBox;
+
+  /// @dev Set up the deployer via their private key from the environment
+  function deployer() public returns (address) {
+    uint256 privKey = vm.envUint("PRIVATE_KEY");
+    return vm.rememberKey(privKey);
+  }
+
+  /// @dev Deploy the contract to a deterministic address via forge's create2 deployer factory.
+  function run() public virtual {
+    vm.startBroadcast(deployer());
+
+    instance = factory.createHatsModule(
+      address(implementation),
+      electedRole, // hatId
+      abi.encodePacked(ballotBox, admin),
+      abi.encode(block.timestamp + 7 days)
+    );
+
+    vm.stopBroadcast();
+
+    console2.log("Deployed instance:", instance);
+  }
+}
 
 contract Deploy is Script {
   HatsElectionEligibility public implementation;
-  bytes32 public SALT = bytes32(abi.encode("change this to the value of your choice"));
+  bytes32 public SALT = bytes32(abi.encode(0x4a75)); // ~ H(4) A(a) T(7) S(5)
 
   // default values
   bool internal _verbose = true;
-  string internal _version = "0.0.1"; // increment this with each new deployment
+  string internal _version = "0.1.0"; // increment this with each new deployment
 
   /// @dev Override default values, if desired
   function prepare(bool verbose, string memory version) public {
@@ -71,7 +107,7 @@ contract DeployPrecompiled is Deploy {
 /* FORGE CLI COMMANDS
 
 ## A. Simulate the deployment locally
-forge script script/Deploy.s.sol -f mainnet
+forge script script/Deploy.s.sol:Deploy -f mainnet
 
 ## B. Deploy to real network and verify on etherscan
 forge script script/Deploy.s.sol -f mainnet --broadcast --verify
