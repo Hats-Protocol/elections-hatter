@@ -49,7 +49,7 @@ contract ModuleTest is Deploy, Test {
   event ElectionOpened(uint128 nextTermEnd);
   event ElectionCompleted(uint128 termEnd, address[] winners);
   event NewTermStarted(uint128 termEnd);
-  event Recalled(address[] accounts);
+  event Recalled(uint128 termEnd, address[] accounts);
 
   error NotBallotBox();
   error NotAdmin();
@@ -435,7 +435,7 @@ contract Recalling is WithInstanceTest {
     recallees[0] = candidate1;
 
     vm.expectEmit();
-    emit Recalled(recallees);
+    emit Recalled(currentTermEnd, recallees);
 
     vm.prank(caller);
     instance.recall(currentTermEnd, recallees);
@@ -449,7 +449,7 @@ contract Recalling is WithInstanceTest {
     recallees[1] = candidate2;
 
     vm.expectEmit();
-    emit Recalled(recallees);
+    emit Recalled(currentTermEnd, recallees);
 
     vm.prank(caller);
     instance.recall(currentTermEnd, recallees);
