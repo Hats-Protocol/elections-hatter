@@ -41,7 +41,7 @@ contract HatsElectionEligibility is HatsEligibilityModule {
 
   event NewTermStarted(uint128 termEnd);
 
-  event Recalled(address[] accounts);
+  event Recalled(uint128 termEnd, address[] accounts);
 
   /*//////////////////////////////////////////////////////////////
                             DATA MODELS
@@ -213,7 +213,7 @@ contract HatsElectionEligibility is HatsEligibilityModule {
       }
     }
 
-    emit Recalled(_recallees);
+    emit Recalled(_termEnd, _recallees);
   }
 
   /**
